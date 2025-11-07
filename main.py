@@ -2,6 +2,7 @@ import os
 import sys
 from typing import List, Tuple
 from dotenv import load_dotenv
+from rag_engine import RAGEngine
 
 
 def print_help() -> None:
@@ -39,6 +40,82 @@ def parse_command(user_input: str) -> Tuple[bool, str, List[str]]:
     return True, command, args
 
 
+def handle_add(engine, args):
+    if not args:
+        print("❌ Usage: /add <path>")
+        return
+
+    file_path = args[0]
+
+    try:
+        engine.add_document(file_path)
+    except Exception as e:
+        print(f"❌ Add failed: {str(e)}")
+    else:
+        print(f"✅ Added successfully: {file_path}")
+
+
+def handle_remove(engine, args):
+    if not args:
+        print("❌ Usage: /remove <filename>")
+        return
+
+    filename = args[0]
+
+    try:
+        engine.remove_document(filename)
+    except Exception as e:
+        print(f"❌ Removal failed: {str(e)}")
+    else:
+        print(f"✅ Removal successful: {filename}")
+
+
+def handle_list(engine):
+    file_names = engine.list_files()
+
+    if not file_names:
+        print("No documents added")
+    else:
+        print(f"\n📜 Your Documents:")
+        for file_name in file_names:
+            print(f"- {file_name}")
+        print()
+
+
+def handle_reset(engine):
+    files = engine.list_files()
+
+    if not files:
+        print("No documents added")
+        return
+
+    # Ask for confirmation
+    print(f"⚠️ This will remove all {len(files)} document(s) and chat history ⚠️")
+    confirm = input("Are you sure? (yes/no): ").strip()
+
+    if confirm == "yes":
+        try:
+            engine.reset_all()
+        except Exception as e:
+            print(f"❌ Reset operation failed: {str(e)}")
+        else:
+            print(f"✅ Reset operation successful")
+
+
+def handle_chat(engine, message):
+    docchat_message = "\n🤖 Doc-Chat: "
+
+    response, sources = engine.chat(message)
+    docchat_message += response
+
+    if sources:
+        docchat_message += "\n\n📚 Sources:\n"
+        for i in range(len(sources)):
+            docchat_message += f"  [{i+1}] {sources[i]['source']} (Chunk {sources[i]['chunk_index']})\n"
+
+    print(docchat_message)
+
+
 def main() -> None:
     # Load environment variables
     load_dotenv()
@@ -50,7 +127,11 @@ def main() -> None:
         sys.exit(1)
 
     # Initialize RAG engine
-    # TODO
+    try:
+        engine = RAGEngine(openai_api_key=api_key)
+    except Exception as e:
+        print(f"❌ Error initializing Doc-Chat: {str(e)}")
+        sys.exit(1)
 
     # Print welcome message
     print_welcome()
@@ -76,28 +157,23 @@ def main() -> None:
                     print_help()
 
                 elif command == "add":
-                    # TODO: handle_add()
-                    pass
+                    handle_add(engine, args)
 
                 elif command == "remove":
-                    # TODO: handle_remove()
-                    pass
+                    handle_remove(engine, args)
 
                 elif command == "list":
-                    # TODO: handle_list()
-                    pass
+                    handle_list(engine)
 
                 elif command == "reset":
-                    # TODO: handle_reset()
-                    pass
+                    handle_reset(engine)
 
                 else:
                     print(f"❌ Unknown command: /{command}")
 
             # Handle chat message
             else:
-                # TODO: handle_chat()
-                pass
+                handle_chat(engine, user_input)
 
         except Exception as e:
             print(f"\n❌ Error: {str(e)}")
